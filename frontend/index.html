@@ -1,0 +1,1838 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4469A8">
+
+    <title>Inventario Digitalizado</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/styles.css') }}"
+    >
+</head>
+
+<body>
+
+    <!-- =================================================
+         LOGIN
+    ================================================== -->
+    <section
+        id="roleSelector"
+        class="role-selector login-screen"
+        aria-labelledby="loginTitle"
+    >
+        <div class="login-card">
+
+            <div class="login-brand">
+                <span class="brand-icon">ID</span>
+
+                <span class="eyebrow">
+                    INVENTARIO DIGITALIZADO
+                </span>
+            </div>
+
+            <h1 id="loginTitle">
+                Bienvenida
+            </h1>
+
+            <p class="login-subtitle">
+                Accede a tu espacio de trabajo.
+            </p>
+
+            <form id="loginForm" class="login-form">
+
+                <label
+                    class="field-label"
+                    for="loginEmail"
+                >
+                    Usuario o correo electrónico
+                </label>
+
+                <input
+                    id="loginEmail"
+                    name="email"
+                    type="text"
+                    placeholder="Ingresa tu usuario"
+                    autocomplete="username"
+                    required
+                >
+
+                <label
+                    class="field-label"
+                    for="loginPassword"
+                >
+                    Contraseña
+                </label>
+
+                <div class="password-field">
+
+                    <input
+                        id="loginPassword"
+                        name="password"
+                        type="password"
+                        placeholder="Ingresa tu contraseña"
+                        autocomplete="current-password"
+                        required
+                    >
+
+                    <button
+                        id="togglePassword"
+                        type="button"
+                        aria-label="Mostrar contraseña"
+                    >
+                        Ver
+                    </button>
+
+                </div>
+
+                <div
+                    id="loginMessage"
+                    class="message hidden"
+                    role="status"
+                    aria-live="polite"
+                ></div>
+
+                <button
+                    class="button primary full-width"
+                    type="submit"
+                >
+                    Iniciar sesión
+                </button>
+
+            </form>
+        </div>
+    </section>
+
+
+    <!-- =================================================
+         BARRA SUPERIOR
+    ================================================== -->
+    <header class="topbar">
+
+        <a
+            class="brand"
+            href="/"
+            aria-label="Inicio de Inventario Digitalizado"
+        >
+            <span class="brand-icon">
+                ID
+            </span>
+
+            <span>
+                <strong>
+                    Inventario Digitalizado
+                </strong>
+
+                <small>
+                    Gestión inteligente de contenedores
+                </small>
+            </span>
+        </a>
+
+        <div class="topbar-actions">
+
+            <div
+                class="role-indicator"
+                aria-live="polite"
+            >
+                <span id="currentRoleIcon">
+                    ▣
+                </span>
+
+                <span id="currentRoleLabel">
+                    Perfil
+                </span>
+            </div>
+
+            <button
+                id="changeRoleButton"
+                class="button secondary change-role-button"
+                type="button"
+            >
+                Cerrar sesión
+            </button>
+
+            <div
+                class="connection"
+                role="status"
+                aria-live="polite"
+            >
+                <span class="status-dot"></span>
+
+                <span id="connectionStatus">
+                    Conectando...
+                </span>
+            </div>
+
+        </div>
+    </header>
+
+
+    <!-- =================================================
+         CONTENIDO PRINCIPAL
+    ================================================== -->
+    <main class="container">
+
+
+        <!-- =============================================
+             INICIO DEL OPERADOR
+        ============================================== -->
+        <section
+            id="operatorHomeSection"
+            class="operator-home"
+        >
+
+            <div class="welcome">
+
+                <div>
+                    <span
+                        class="eyebrow"
+                        id="welcomeEyebrow"
+                    >
+                        TURNO OPERATIVO
+                    </span>
+
+                    <h1 id="welcomeTitle">
+                        Bienvenido
+                    </h1>
+
+                    <p id="welcomeDescription">
+                        Gestiona el registro y evidencia de los contenedores.
+                    </p>
+                </div>
+
+                <div
+                    class="welcome-decoration"
+                    aria-hidden="true"
+                >
+                    ✦
+                </div>
+
+            </div>
+
+
+            <!-- RESUMEN DEL TURNO -->
+            <section
+                class="operator-summary"
+                aria-label="Resumen del turno"
+            >
+
+                <article class="stat-card">
+                    <span class="stat-icon" aria-hidden="true">
+                        ◷
+                    </span>
+
+                    <p>Turno</p>
+
+                    <strong id="operatorShift">
+                        Turno 1
+                    </strong>
+                </article>
+
+                <article class="stat-card">
+                    <span class="stat-icon" aria-hidden="true">
+                        ◎
+                    </span>
+
+                    <p>Responsable</p>
+
+                    <strong id="shiftResponsible">
+                        Pendiente
+                    </strong>
+                </article>
+
+                <article class="stat-card">
+                    <span class="stat-icon" aria-hidden="true">
+                        ▦
+                    </span>
+
+                    <p>Contenedores registrados</p>
+
+                    <strong id="operatorContainerCount">
+                        0
+                    </strong>
+                </article>
+
+                <article class="stat-card">
+                    <span class="stat-icon" aria-hidden="true">
+                        ▧
+                    </span>
+
+                    <p>Fotografías tomadas</p>
+
+                    <strong id="operatorPhotoCount">
+                        0
+                    </strong>
+                </article>
+
+            </section>
+
+
+            <!-- ACCIONES PRINCIPALES -->
+            <section
+                class="operator-action-grid"
+                aria-label="Acciones del operador"
+            >
+
+                <article class="panel operator-action-card">
+
+                    <div class="panel-heading">
+                        <div>
+                            <span class="eyebrow">
+                                REGISTRO
+                            </span>
+
+                            <h2>
+                                Nuevo contenedor
+                            </h2>
+
+                            <p>
+                                Identifica, documenta y confirma un nuevo registro.
+                            </p>
+                        </div>
+
+                        <span class="soft-icon" aria-hidden="true">
+                            ＋
+                        </span>
+                    </div>
+
+                    <button
+                        id="startContainerButton"
+                        class="button primary full-width"
+                        type="button"
+                    >
+                        Registrar nuevo contenedor
+                    </button>
+
+                </article>
+
+
+                <article class="panel operator-action-card">
+
+                    <div class="panel-heading">
+                        <div>
+                            <span class="eyebrow">
+                                CONSULTA
+                            </span>
+
+                            <h2>
+                                Historial
+                            </h2>
+
+                            <p>
+                                Consulta los movimientos registrados durante el turno.
+                            </p>
+                        </div>
+
+                        <span class="soft-icon" aria-hidden="true">
+                            ◷
+                        </span>
+                    </div>
+
+                    <button
+                        id="openOperatorHistoryButton"
+                        class="button secondary full-width"
+                        type="button"
+                    >
+                        Consultar historial
+                    </button>
+
+                </article>
+
+            </section>
+
+            <!-- INVENTARIO VISIBLE PARA EL OPERADOR -->
+            <section class="operator-inventory" aria-labelledby="operatorInventoryTitle">
+                <div class="section-heading">
+                    <div>
+                        <span class="eyebrow">INVENTARIO</span>
+                        <h2 id="operatorInventoryTitle">Contenedores registrados</h2>
+                        <p>Consulta los contenedores capturados durante la operación.</p>
+                    </div>
+
+                    <button
+                        id="refreshOperatorInventory"
+                        class="button secondary"
+                        type="button"
+                    >
+                        ↻ Actualizar
+                    </button>
+                </div>
+
+                <article class="panel">
+                    <div class="operator-table-wrapper">
+                        <table class="operator-table">
+                            <thead>
+                                <tr>
+                                    <th>CAJA</th>
+                                    <th>CARRIER</th>
+                                    <th>STATUS</th>
+                                    <th>UBICACIÓN</th>
+                                    <th>PATIO</th>
+                                </tr>
+                            </thead>
+                            <tbody id="operatorContainersList">
+                                <tr>
+                                    <td colspan="5">Cargando inventario...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+
+        </section>
+
+
+        <!-- =============================================
+             FLUJO DEL OPERADOR
+        ============================================== -->
+        <section
+            id="operatorFlowSection"
+            class="operator-flow hidden"
+            aria-label="Registro de contenedor"
+        >
+
+            <!-- PROGRESO -->
+            <div class="progress-header">
+                <div>
+                    <span class="eyebrow">
+                        REGISTRO DE CONTENEDOR
+                    </span>
+
+                    <h2>
+                        Identificar → Documentar → Confirmar
+                    </h2>
+                </div>
+            </div>
+
+
+            <nav
+                class="progress-steps"
+                aria-label="Progreso del registro"
+            >
+
+                <button
+                    class="progress-step active"
+                    type="button"
+                    data-flow-step="container"
+                >
+                    <span class="progress-step-number">1</span>
+
+                    <span class="progress-step-label">
+                        Contenedor
+                    </span>
+                </button>
+
+                <span
+                    class="progress-line"
+                    aria-hidden="true"
+                ></span>
+
+                <button
+                    class="progress-step pending"
+                    type="button"
+                    data-flow-step="evidence"
+                >
+                    <span class="progress-step-number">2</span>
+
+                    <span class="progress-step-label">
+                        Evidencia
+                    </span>
+                </button>
+
+                <span
+                    class="progress-line"
+                    aria-hidden="true"
+                ></span>
+
+                <button
+                    class="progress-step pending"
+                    type="button"
+                    data-flow-step="confirmation"
+                >
+                    <span class="progress-step-number">3</span>
+
+                    <span class="progress-step-label">
+                        Confirmación
+                    </span>
+                </button>
+
+            </nav>
+
+
+            <!-- PASO 1: CONTENEDOR -->
+            <section
+                id="containerStep"
+                class="step-content container-step"
+            >
+
+                <div class="section-heading">
+                    <div>
+                        <span class="eyebrow">PASO 1</span>
+
+                        <h2>
+                            Identificar contenedor
+                        </h2>
+
+                        <p>
+                            Escanea el código y completa la información del registro.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- =================================================
+     OCR CON CÁMARA EN VIVO
+================================================== -->
+<section class="workspace" id="scanWorkspace">
+
+    <!-- CÁMARA -->
+    <article class="panel scan-panel">
+
+        <div class="panel-heading">
+            <div>
+                <span class="eyebrow">
+                    RECONOCIMIENTO
+                </span>
+
+                <h3>
+                    Escanear contenedor
+                </h3>
+
+                <p>
+                    Enfoca el identificador del contenedor para
+                    reconocerlo automáticamente.
+                </p>
+            </div>
+        </div>
+
+        <form id="scanForm">
+
+            <!-- MODO DE RECONOCIMIENTO OCR -->
+            <label class="field-label" for="scanMode">
+                Tipo de identificador
+            </label>
+
+            <select id="scanMode" name="modo">
+                <option value="auto">Detección automática</option>
+                <option value="iso">Código ISO de contenedor</option>
+                <option value="numerico">Solo números</option>
+            </select>
+
+            <!-- MODO DE ESCANEO -->
+            <label class="field-label" for="cameraScanMode">
+                Modo de escaneo
+            </label>
+
+            <select id="cameraScanMode">
+                <option value="auto">
+                    Automático continuo
+                </option>
+
+                <option value="manual">
+                    Manual
+                </option>
+            </select>
+
+            <!-- VISOR DE CÁMARA -->
+            <div class="camera-container">
+
+                <div class="camera-preview">
+
+                    <video
+                        id="cameraVideo"
+                        autoplay
+                        muted
+                        playsinline
+                    ></video>
+
+                    <canvas
+                        id="cameraCanvas"
+                        class="hidden"
+                    ></canvas>
+
+                    <!-- MARCO VISUAL -->
+                    <div
+                        class="camera-overlay"
+                        aria-hidden="true"
+                    >
+                        <div class="camera-scan-frame">
+                            <span class="scan-corner top-left"></span>
+                            <span class="scan-corner top-right"></span>
+                            <span class="scan-corner bottom-left"></span>
+                            <span class="scan-corner bottom-right"></span>
+                        </div>
+
+                        <p>
+                            Coloca el identificador dentro del marco
+                        </p>
+                    </div>
+
+                    <!-- MENSAJE CUANDO LA CÁMARA ESTÁ APAGADA -->
+                    <div
+                        id="cameraPlaceholder"
+                        class="camera-placeholder"
+                    >
+                        <span aria-hidden="true">▣</span>
+
+                        <strong>
+                            Cámara desactivada
+                        </strong>
+
+                        <p>
+                            Activa la cámara para comenzar el reconocimiento.
+                        </p>
+                    </div>
+
+                </div>
+
+                <!-- ESTADO DE CÁMARA -->
+                <div
+                    id="cameraStatus"
+                    class="camera-status"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <span class="status-dot"></span>
+                    Cámara desconectada
+                </div>
+
+            </div>
+
+            <!-- CONTROLES -->
+            <div class="camera-controls">
+
+                <button
+                    id="startCameraButton"
+                    class="button primary full-width"
+                    type="button"
+                >
+                    Activar cámara
+                </button>
+
+                <button
+                    id="stopCameraButton"
+                    class="button secondary full-width"
+                    type="button"
+                    disabled
+                >
+                    Detener cámara
+                </button>
+
+            </div>
+
+            <!-- ESCANEO MANUAL -->
+            <button
+                id="scanButton"
+                class="button primary full-width"
+                type="submit"
+                disabled
+            >
+                <span aria-hidden="true">⌕</span>
+                Escanear ahora
+            </button>
+
+            <p class="form-note">
+                En modo automático, el sistema analizará imágenes
+                periódicamente. En modo manual, utiliza el botón
+                para iniciar cada reconocimiento.
+            </p>
+
+        </form>
+
+        <!-- PROGRESO -->
+        <div
+            id="scanProgress"
+            class="scan-progress hidden"
+            role="status"
+            aria-live="polite"
+        >
+            <span
+                class="spinner"
+                aria-hidden="true"
+            ></span>
+
+            <div>
+                <strong id="progressTitle">
+                    Analizando imagen...
+                </strong>
+
+                <p id="progressDescription">
+                    Buscando el identificador del contenedor.
+                </p>
+            </div>
+        </div>
+
+        <!-- MENSAJES -->
+        <div
+            id="scanMessage"
+            class="message hidden"
+            role="status"
+            aria-live="polite"
+        ></div>
+
+    </article>
+
+
+    <!-- RESULTADO OCR -->
+    <article class="panel result-panel">
+
+        <div class="panel-heading">
+            <div>
+                <span class="eyebrow">
+                    RESULTADO DEL OCR
+                </span>
+
+                <h3>
+                    Identificación detectada
+                </h3>
+            </div>
+
+            <span
+                class="result-icon"
+                aria-hidden="true"
+            >
+                ⌕
+            </span>
+        </div>
+
+        <!-- SIN RESULTADOS -->
+        <div
+            id="emptyResult"
+            class="empty-result"
+        >
+            <div
+                class="empty-illustration"
+                aria-hidden="true"
+            >
+                ▤
+            </div>
+
+            <strong id="emptyResultTitle">
+                Aún no hay resultados
+            </strong>
+
+            <p id="emptyResultDescription">
+                El identificador aparecerá aquí cuando la cámara
+                logre reconocerlo.
+            </p>
+
+            <button
+                id="retryScan"
+                class="button secondary retry-button hidden"
+                type="button"
+            >
+                Intentar nuevamente
+            </button>
+        </div>
+
+        <!-- RESULTADO DETECTADO -->
+        <div id="scanResult" class="hidden">
+
+            <div class="identifier-box">
+
+                <span>
+                    IDENTIFICADOR
+                </span>
+
+                <strong id="resultValue">
+                    —
+                </strong>
+
+                <span
+                    id="resultType"
+                    class="tag"
+                >
+                    —
+                </span>
+
+            </div>
+
+            <div class="result-details">
+
+                <div>
+                    <span>Confianza OCR</span>
+                    <strong id="resultConfidence">—</strong>
+                </div>
+
+                <div>
+                    <span>Orientación</span>
+                    <strong id="resultOrientation">—</strong>
+                </div>
+
+                <div>
+                    <span>Método</span>
+                    <strong id="resultMethod">—</strong>
+                </div>
+
+            </div>
+
+            <div
+                id="reviewNotice"
+                class="review-notice hidden"
+            >
+                Revisa el identificador antes de registrarlo.
+            </div>
+
+            <button
+                id="useIdentifier"
+                class="button secondary full-width"
+                type="button"
+            >
+                Usar identificador para registrar
+            </button>
+
+        </div>
+
+    </article>
+
+</section>
+                <!-- INFORMACIÓN DEL CONTENEDOR -->
+                <article class="panel container-information-panel">
+
+                    <div class="panel-heading">
+                        <div>
+                            <span class="eyebrow">INFORMACIÓN</span>
+
+                            <h3>
+                                Datos del contenedor
+                            </h3>
+
+                            <p>
+                                Verifica el identificador antes de continuar.
+                            </p>
+                        </div>
+
+                        <span class="soft-icon" aria-hidden="true">
+                            ▣
+                        </span>
+                    </div>
+
+
+                    <form id="containerForm">
+
+                        <label
+                            class="field-label"
+                            for="containerNumber"
+                        >
+                            Identificador del contenedor
+                        </label>
+
+                        <input
+                            id="containerNumber"
+                            type="text"
+                            maxlength="50"
+                            placeholder="Ej. UMXU2517344"
+                            autocomplete="off"
+                            required
+                        >
+
+
+                        <div class="form-grid">
+
+                            <div>
+                                <label
+                                    class="field-label"
+                                    for="containerCarrier"
+                                >
+                                    Carrier
+                                </label>
+
+                                <input
+                                    id="containerCarrier"
+                                    type="text"
+                                    maxlength="100"
+                                    placeholder="Ej. MSC, MAERSK, CMA CGM"
+                                    required
+                                >
+                            </div>
+
+                            <div>
+                                <label
+                                    class="field-label"
+                                    for="containerLocation"
+                                >
+                                    Ubicación
+                                </label>
+
+                                <input
+                                    id="containerLocation"
+                                    type="text"
+                                    maxlength="150"
+                                    placeholder="Ej. Zona A-12"
+                                    required
+                                >
+                            </div>
+
+                        </div>
+
+                        <div class="form-grid">
+
+                            <div>
+                                <label
+                                    class="field-label"
+                                    for="containerPatio"
+                                >
+                                    Patio
+                                </label>
+
+                                <input
+                                    id="containerPatio"
+                                    type="text"
+                                    maxlength="100"
+                                    placeholder="Ej. Patio 1"
+                                    required
+                                >
+                            </div>
+
+                            <div>
+                                <label
+                                    class="field-label"
+                                    for="containerOperator"
+                                >
+                                    Operador
+                                </label>
+
+                                <input
+                                    id="containerOperator"
+                                    type="text"
+                                    maxlength="100"
+                                    placeholder="Nombre del operador"
+                                >
+                            </div>
+
+                        </div>
+
+
+                        <label
+                            class="field-label"
+                            for="containerObservations"
+                        >
+                            Observaciones
+                        </label>
+
+                        <textarea
+                            id="containerObservations"
+                            rows="3"
+                            placeholder="Detalles o incidencias (opcional)"
+                        ></textarea>
+
+
+                        <label
+                            class="field-label"
+                            for="containerStatus"
+                        >
+                            Estado
+                        </label>
+
+                        <select id="containerStatus" required>
+                            <option value="registrado">Registrado</option>
+                            <option value="en_revision">En revisión</option>
+                            <option value="observado">Observado</option>
+                            <option value="disponible">Disponible</option>
+                        </select>
+
+
+                        <p class="form-note">
+                            El identificador puede corregirse antes de confirmar
+                            el registro.
+                        </p>
+
+
+                        <div
+                            id="containerMessage"
+                            class="message hidden"
+                            role="status"
+                            aria-live="polite"
+                        ></div>
+
+
+                        <button
+                            id="continueToEvidence"
+                            class="button primary full-width"
+                            type="submit"
+                        >
+                            Continuar a evidencia
+                        </button>
+
+                    </form>
+
+                </article>
+
+            </section>
+
+
+            <!-- =========================================
+                 PASO 2: EVIDENCIA
+            ========================================== -->
+            <section
+                id="evidenceStep"
+                class="step-content evidence-step hidden"
+            >
+
+                <div class="section-heading">
+                    <div>
+                        <span class="eyebrow">PASO 2</span>
+
+                        <h2>
+                            Documentar contenedor
+                        </h2>
+
+                        <p>
+                            Captura la evidencia fotográfica necesaria.
+                        </p>
+                    </div>
+                </div>
+
+
+                <!-- RESUMEN DEL CONTENEDOR -->
+                <article class="panel evidence-summary">
+
+                    <div class="panel-heading">
+                        <div>
+                            <span class="eyebrow">CONTENEDOR</span>
+
+                            <h3 id="evidenceContainerNumber">—</h3>
+
+                            <p id="evidenceContainerLocation">
+                                Ubicación pendiente
+                            </p>
+                        </div>
+
+                        <span
+                            class="tag"
+                            id="evidenceContainerStatus"
+                        >
+                            Pendiente
+                        </span>
+                    </div>
+
+                </article>
+
+
+                <!-- FOTOS DEL CONTENEDOR -->
+                <article class="panel">
+
+                    <div class="panel-heading">
+                        <div>
+                            <span class="eyebrow">FOTOGRAFÍAS</span>
+
+                            <h3>
+                                Evidencia del contenedor
+                            </h3>
+
+                            <p>
+                                La fotografía 1 es obligatoria. Puedes agregar
+                                hasta 5 fotografías.
+                            </p>
+                        </div>
+
+                        <span class="soft-icon" aria-hidden="true">
+                            ▧
+                        </span>
+                    </div>
+
+
+                    <div id="photoSlots" class="photo-slots">
+
+                        <div
+                            class="photo-slot required"
+                            data-photo-slot="1"
+                        >
+                            <span class="photo-slot-number">1</span>
+                            <span>Fotografía principal</span>
+                            <small>Obligatoria</small>
+                        </div>
+
+                        <div
+                            class="photo-slot"
+                            data-photo-slot="2"
+                        >
+                            <span class="photo-slot-number">2</span>
+                            <span>Fotografía adicional</span>
+                            <small>Opcional</small>
+                        </div>
+
+                        <div
+                            class="photo-slot"
+                            data-photo-slot="3"
+                        >
+                            <span class="photo-slot-number">3</span>
+                            <span>Fotografía adicional</span>
+                            <small>Opcional</small>
+                        </div>
+
+                        <div
+                            class="photo-slot"
+                            data-photo-slot="4"
+                        >
+                            <span class="photo-slot-number">4</span>
+                            <span>Fotografía adicional</span>
+                            <small>Opcional</small>
+                        </div>
+
+                        <div
+                            class="photo-slot"
+                            data-photo-slot="5"
+                        >
+                            <span class="photo-slot-number">5</span>
+                            <span>Fotografía adicional</span>
+                            <small>Opcional</small>
+                        </div>
+
+                    </div>
+
+
+                    <form
+                        id="photoForm"
+                        class="photo-upload-form"
+                    >
+
+                        <div>
+                            <label
+                                class="field-label"
+                                id="photoInputLabel"
+                                for="photoInput"
+                            >
+                                Agregar fotografía
+                            </label>
+
+                            <input
+                                id="photoInput"
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                required
+                            >
+                        </div>
+
+
+                        <div
+                            id="sealNumberWrapper"
+                            class="hidden"
+                        >
+                            <label
+                                class="field-label"
+                                for="sealNumber"
+                            >
+                                Número de sello
+                            </label>
+
+                            <input
+                                id="sealNumber"
+                                type="text"
+                                maxlength="80"
+                                placeholder="Ej. SEL-001"
+                            >
+                        </div>
+
+
+                        <button
+                            id="uploadPhotoButton"
+                            class="button primary"
+                            type="submit"
+                        >
+                            Agregar fotografía
+                        </button>
+
+                    </form>
+
+
+                    <p
+                        id="sealApiNote"
+                        class="form-note hidden"
+                    >
+                        La carga de fotografías de sellos requiere conectar
+                        el backend.
+                    </p>
+
+
+                    <div
+                        id="photoMessage"
+                        class="message hidden"
+                        role="status"
+                        aria-live="polite"
+                    ></div>
+
+
+                    <div
+                        id="photosList"
+                        class="photos-grid"
+                    >
+                        <div class="loading">
+                            Aún no hay fotografías.
+                        </div>
+                    </div>
+
+                </article>
+
+
+                <!-- SELLO DE SEGURIDAD -->
+                <article class="panel seal-evidence-panel">
+
+                    <div class="panel-heading">
+                        <div>
+                            <span class="eyebrow">SEGURIDAD</span>
+
+                            <h3>
+                                Sello de seguridad
+                            </h3>
+
+                            <p>
+                                La evidencia del sello será requerida antes
+                                de confirmar el registro.
+                            </p>
+                        </div>
+
+                        <span class="soft-icon" aria-hidden="true">
+                            ◈
+                        </span>
+                    </div>
+
+
+                    <div
+                        id="sealEvidenceStatus"
+                        class="notice-panel"
+                    >
+                        Fotografía del sello pendiente.
+                    </div>
+
+
+                    <button
+                        id="captureSealButton"
+                        class="button secondary full-width"
+                        type="button"
+                    >
+                        Capturar fotografía del sello
+                    </button>
+
+                </article>
+
+
+                <div class="step-actions">
+
+                    <button
+                        id="backToContainer"
+                        class="button secondary"
+                        type="button"
+                    >
+                        ← Volver
+                    </button>
+
+                    <button
+                        id="continueToConfirmation"
+                        class="button primary"
+                        type="button"
+                    >
+                        Continuar a confirmación →
+                    </button>
+
+                </div>
+
+            </section>
+
+
+            <!-- =========================================
+                 PASO 3: CONFIRMACIÓN
+            ========================================== -->
+            <section
+                id="confirmationStep"
+                class="step-content confirmation-step hidden"
+            >
+                <div class="section-heading">
+                    <div>
+                        <span class="eyebrow">PASO 3</span>
+                        <h2>
+                            Confirmar registro
+                        </h2>
+                        <p>
+                            Revisa la información antes de finalizar.
+                        </p>
+                    </div>
+                </div>
+                <article class="panel confirmation-card">
+                    <div class="confirmation-header">
+                        <span
+                            class="confirmation-icon"
+                            aria-hidden="true"
+                        >
+                            ✓
+                        </span>
+                        <div>
+                            <span class="eyebrow">REGISTRO LISTO</span>
+                            <h3>
+                                Verifica los datos
+                            </h3>
+                            <p>
+                                Una vez confirmado, el identificador quedará
+                                bloqueado.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="confirmation-details">
+                        <div>
+                            <span>Contenedor</span>
+                            <strong id="confirmationContainerNumber">—</strong>
+                        </div>
+                        <div>
+                            <span>Carrier</span>
+                            <strong id="confirmationCarrier">—</strong>
+                        </div>
+                        <div>
+                            <span>Status</span>
+                            <strong id="confirmationStatusValue">—</strong>
+                        </div>
+                        <div>
+                            <span>Ubicación</span>
+                            <strong id="confirmationLocation">—</strong>
+                        </div>
+                        <div>
+                            <span>Patio</span>
+                            <strong id="confirmationPatio">—</strong>
+                        </div>
+                        <div>
+                            <span>Fotografías</span>
+                            <strong id="confirmationPhotoCount">0</strong>
+                        </div>
+                        <div>
+                            <span>Sello</span>
+                            <strong id="confirmationSealStatus">Pendiente</strong>
+                        </div>
+                        <div>
+                            <span>Fecha y hora</span>
+                            <strong id="confirmationDateTime">—</strong>
+                        </div>
+                    </div>
+                    <div class="confirmation-observations">
+                        <span>Observaciones</span>
+                        <p id="confirmationObservations">
+                            Sin observaciones.
+                        </p>
+                    </div>
+                    <div
+                        id="confirmationMessage"
+                        class="message hidden"
+                        role="status"
+                        aria-live="polite"
+                    ></div>
+                    <button
+                        id="confirmRegistration"
+                        class="button primary full-width"
+                        type="button"
+                    >
+                        Confirmar registro
+                    </button>
+                </article>
+                <div class="step-actions">
+                    <button
+                        id="backToEvidence"
+                        class="button secondary"
+                        type="button"
+                    >
+                        ← Volver a evidencia
+                    </button>
+                </div>
+            </section>
+        </section>
+
+        <!-- HISTORIAL DEL OPERADOR -->
+        <section
+            id="operatorHistorySection"
+            class="operator-history hidden"
+        >
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">CONSULTA</span>
+                    <h2>
+                        Historial de movimientos
+                    </h2>
+                    <p>
+                        Consulta los registros realizados durante el turno.
+                    </p>
+                </div>
+                <button
+                    id="backToOperatorHome"
+                    class="button secondary"
+                    type="button"
+                >
+                    ← Inicio
+                </button>
+            </div>
+            <article class="panel">
+                <div class="history-filters">
+                    <div>
+                        <label
+                            class="field-label"
+                            for="operatorHistoryDate"
+                        >
+                            Fecha
+                        </label>
+                        <input
+                            id="operatorHistoryDate"
+                            type="date"
+                        >
+                    </div>
+                    <div>
+                        <label
+                            class="field-label"
+                            for="operatorHistorySearch"
+                        >
+                            Buscar contenedor
+                        </label>
+                        <input
+                            id="operatorHistorySearch"
+                            type="search"
+                            placeholder="Ej. UMXU2517344"
+                        >
+                    </div>
+                </div>
+                <div
+                    id="operatorHistoryList"
+                    class="containers-list"
+                >
+                    <div class="empty-result">
+                        <div
+                            class="empty-illustration"
+                            aria-hidden="true"
+                        >
+                            ◷
+                        </div>
+                        <strong>
+                            Aún no hay movimientos
+                        </strong>
+                        <p>
+                            Los registros realizados aparecerán aquí.
+                        </p>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <!-- NAVEGACIÓN ADMINISTRATIVA -->
+        <nav
+            id="adminNavigation"
+            class="quick-nav admin-only"
+            aria-label="Navegación administrativa"
+        >
+            <button
+                class="quick-nav-link active"
+                type="button"
+                data-scroll-to="scanHeading"
+            >
+                Escanear
+            </button>
+            <button
+                class="quick-nav-link"
+                type="button"
+                data-scroll-to="inventoryHeading"
+            >
+                Inventario
+            </button>
+            <button
+                class="quick-nav-link admin-only"
+                type="button"
+                data-scroll-to="statsSection"
+            >
+                Resumen
+            </button>
+            <button
+                class="quick-nav-link admin-only"
+                type="button"
+                data-scroll-to="historySection"
+            >
+                Históricos
+            </button>
+            <button
+                class="quick-nav-link admin-only"
+                type="button"
+                data-scroll-to="usersSection"
+            >
+                Usuarios
+            </button>
+            <button
+                class="quick-nav-link admin-only"
+                type="button"
+                data-scroll-to="geolocationSection"
+            >
+                Ubicación
+            </button>
+        </nav>
+
+        <!-- RESUMEN DEL ADMINISTRADOR -->
+        <section
+            id="statsSection"
+            class="stats-grid admin-only"
+            aria-label="Resumen del sistema"
+        >
+            <article class="stat-card purple">
+                <span class="stat-icon" aria-hidden="true">▦</span>
+                <p>Contenedores registrados</p>
+                <strong id="totalContainers">0</strong>
+            </article>
+            <article class="stat-card pink">
+                <span class="stat-icon" aria-hidden="true">▧</span>
+                <p>Fotografías almacenadas</p>
+                <strong id="totalPhotos">0</strong>
+            </article>
+            <article class="stat-card yellow">
+                <span class="stat-icon" aria-hidden="true">◎</span>
+                <p>Estado del sistema</p>
+                <strong id="systemStatus">Verificando</strong>
+            </article>
+        </section>
+
+        <!-- ENCABEZADO OCR ADMINISTRADOR -->
+        <section
+            class="section-heading admin-only"
+            id="scanHeading"
+        >
+            <div>
+                <span class="eyebrow">RECONOCIMIENTO</span>
+                <h2>
+                    Escanear contenedor
+                </h2>
+                <p>
+                    Captura una imagen para detectar el identificador.
+                </p>
+            </div>
+        </section>
+
+        <!-- ENCABEZADO INVENTARIO ADMINISTRADOR -->
+        <section
+            class="section-heading management-heading admin-only"
+            id="inventoryHeading"
+        >
+            <div>
+                <span class="eyebrow">INVENTARIO</span>
+                <h2 id="inventoryHeadingTitle">
+                    Inventario registrado
+                </h2>
+                <p id="inventoryHeadingDescription">
+                    Consulta los registros y sus fotografías.
+                </p>
+            </div>
+            <button
+                id="refreshContainers"
+                class="button secondary"
+                type="button"
+            >
+                ↻ Actualizar
+            </button>
+        </section>
+
+        <!-- ÁREA DE INVENTARIO ADMINISTRADOR -->
+        <section
+            class="management-grid admin-only"
+            id="adminInventoryWorkspace"
+        >
+            <!-- FORMULARIO ADMINISTRADOR -->
+            <article class="panel">
+                <div class="panel-heading">
+                    <div>
+                        <h3>
+                            Registrar contenedor
+                        </h3>
+                        <p>
+                            Información del nuevo registro.
+                        </p>
+                    </div>
+                    <span class="soft-icon" aria-hidden="true">
+                        ＋
+                    </span>
+                </div>
+                <form id="adminContainerForm">
+                    <label
+                        class="field-label"
+                        for="adminContainerNumber"
+                    >
+                        Número o identificador
+                    </label>
+                    <input
+                        id="adminContainerNumber"
+                        type="text"
+                        maxlength="50"
+                        placeholder="Ej. UMXU2517344"
+                        autocomplete="off"
+                    >
+                    <p class="form-note">
+                        El registro operativo se realizará desde el flujo
+                        del operador.
+                    </p>
+                </form>
+            </article>
+
+            <!-- LISTADO EXISTENTE -->
+            <article class="panel inventory-panel">
+                <div class="panel-heading">
+                    <div>
+                        <h3>
+                            Inventario registrado
+                        </h3>
+                        <p>
+                            Selecciona un contenedor para ver sus evidencias.
+                        </p>
+                    </div>
+                </div>
+                <div
+                    id="containersList"
+                    class="containers-list"
+                >
+                    <div class="loading">
+                        Cargando contenedores...
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <!-- FOTOGRAFÍAS Y EVIDENCIAS ADMINISTRADOR -->
+        <section
+            id="photosSection"
+            class="panel photos-panel hidden admin-only"
+        >
+            <div class="panel-heading">
+                <div>
+                    <span class="eyebrow">
+                        ARCHIVO FOTOGRÁFICO
+                    </span>
+                    <h3 id="selectedContainerTitle">
+                        Evidencias del contenedor
+                    </h3>
+                    <p id="selectedContainerDescription"></p>
+                </div>
+                <button
+                    id="closePhotos"
+                    class="button secondary"
+                    type="button"
+                >
+                    Cerrar
+                </button>
+            </div>
+
+            <!-- PESTAÑAS DE EVIDENCIA -->
+            <div
+                class="evidence-tabs"
+                role="tablist"
+                aria-label="Tipo de evidencia"
+            >
+                <button
+                    class="button secondary evidence-tab active"
+                    type="button"
+                    data-evidence-tab="contenedor"
+                >
+                    Fotos del contenedor
+                </button>
+                <button
+                    class="button secondary evidence-tab"
+                    type="button"
+                    data-evidence-tab="sellos"
+                >
+                    Fotos de sellos
+                </button>
+            </div>
+
+            <!-- FORMULARIO DE FOTOGRAFÍAS ADMINISTRADOR -->
+            <form
+                id="legacyPhotoForm"
+                class="photo-upload-form"
+            >
+                <div>
+                    <label
+                        class="field-label"
+                        id="adminPhotoInputLabel"
+                        for="adminPhotoInput"
+                    >
+                        Agregar fotografía del contenedor
+                    </label>
+                    <input
+                        id="adminPhotoInput"
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        required
+                    >
+                </div>
+                <div
+                    id="adminSealNumberWrapper"
+                    class="hidden"
+                >
+                    <label
+                        class="field-label"
+                        for="adminSealNumber"
+                    >
+                        Número de sello
+                    </label>
+                    <input
+                        id="adminSealNumber"
+                        type="text"
+                        maxlength="80"
+                        placeholder="Ej. SEL-001"
+                    >
+                </div>
+                <button
+                    id="adminUploadPhotoButton"
+                    class="button primary"
+                    type="submit"
+                >
+                    Subir fotografía
+                </button>
+            </form>
+            <p
+                id="adminSealApiNote"
+                class="form-note hidden"
+            >
+                La carga de fotografías de sellos requiere conectar
+                el backend.
+            </p>
+            <div
+                id="adminPhotoMessage"
+                class="message hidden"
+                role="status"
+                aria-live="polite"
+            ></div>
+            <div
+                id="adminPhotosList"
+                class="photos-grid"
+            >
+                <div class="loading">
+                    Selecciona un contenedor.
+                </div>
+            </div>
+        </section>
+
+        <!-- HISTÓRICOS ADMINISTRADOR -->
+        <section
+            id="historySection"
+            class="panel admin-only extra-panel"
+        >
+            <div class="panel-heading">
+                <div>
+                    <span class="eyebrow">CONSULTA</span>
+                    <h3>
+                        Historial de inventarios
+                    </h3>
+                    <p>
+                        Consulta por fecha y turno.
+                    </p>
+                </div>
+                <span class="soft-icon" aria-hidden="true">
+                    ◷
+                </span>
+            </div>
+            <div class="history-filters">
+                <div>
+                    <label
+                        class="field-label"
+                        for="historyDate"
+                    >
+                        Fecha
+                    </label>
+                    <input
+                        id="historyDate"
+                        type="date"
+                    >
+                </div>
+                <div>
+                    <label
+                        class="field-label"
+                        for="historyShift"
+                    >
+                        Turno
+                    </label>
+                    <select id="historyShift">
+                        <option value="">
+                            Todos los turnos
+                        </option>
+                        <option value="1">
+                            Turno 1
+                        </option>
+                        <option value="2">
+                            Turno 2
+                        </option>
+                        <option value="3">
+                            Turno 3
+                        </option>
+                    </select>
+                </div>
+            </div>
+            <div class="notice-panel">
+                El historial estará disponible al conectar los datos
+                del backend.
+            </div>
+        </section>
+        <!-- USUARIOS ADMINISTRADOR -->
+        <section
+            id="usersSection"
+            class="panel admin-only users-section"
+        >
+            <div class="panel-heading">
+                <div>
+                    <span class="eyebrow">ADMINISTRACIÓN</span>
+                    <h3>
+                        Usuarios y operadores
+                    </h3>
+                    <p>
+                        Gestión de usuarios del sistema.
+                    </p>
+                </div>
+            </div>
+            <div class="notice-panel">
+                <strong>
+                    Próxima integración
+                </strong>
+                <p>
+                    Esta vista se conectará al listado de usuarios,
+                    roles y turnos.
+                </p>
+            </div>
+        </section>
+        <!-- GEOLOCALIZACIÓN ADMINISTRADOR -->
+        <section
+            id="geolocationSection"
+            class="panel admin-only extra-panel geolocation-card"
+        >
+            <div
+                class="geolocation-icon"
+                aria-hidden="true"
+            >
+                ⌖
+            </div>
+            <span class="eyebrow">
+                MÓDULO FUTURO
+            </span>
+            <h3>
+                Geolocalización
+            </h3>
+            <p>
+                Ubicación de contenedores dentro de planta.
+            </p>
+            <span class="coming-soon">
+                Próximamente
+            </span>
+        </section>
+        <!-- PIE DE PÁGINA -->
+        <footer>
+            <span>
+                Inventario Digitalizado
+            </span>
+            <span>
+                Reconocimiento OCR · Flask · SQLite
+            </span>
+        </footer>
+    </main>
+<!-- ARCHIVOS JAVASCRIPT -->
+<script
+    src="{{ url_for('static', filename='static/app-state.js') }}"
+    defer
+></script>
+<script
+    src="{{ url_for('static', filename='static/router.js') }}"
+    defer
+></script>
+<script
+    src="{{ url_for('static', filename='static/script.js') }}"
+    defer
+></script>
+</body>
+</html>

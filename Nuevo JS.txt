@@ -1,0 +1,1293 @@
+"use strict";
+ 
+const $ = (selector) => document.querySelector(selector);
+ 
+// =====================================================
+// ELEMENTOS
+// =====================================================
+ 
+const scanForm = $("#scanForm");
+const scanImage = $("#scanImage");
+const scanButton = $("#scanButton");
+const previewContainer = $("#previewContainer");
+const imagePreview = $("#imagePreview");
+const fileName = $("#fileName");
+ 
+const containerForm = $("#containerForm");
+const containerNumber = $("#containerNumber");
+const containersList = $("#containersList");
+ 
+const photosSection = $("#photosSection");
+const photoForm = $("#photoForm");
+const photoInput = $("#photoInput");
+const photosList = $("#photosList");
+ 
+const roleSelector = $("#roleSelector");
+const loginForm = $("#loginForm");
+const loginPassword = $("#loginPassword");
+const togglePassword = $("#togglePassword");
+ 
+let rolTemporal = null;
+let contenedores = [];
+let contenedorSeleccionado = null;
+let ultimoResultadoOCR = null;
+let imagenTemporalURL = null;
+let analisisEnCurso = false;
+let avisoLentoMostrado = false;
+let temporizadorAvisoOCR = null;
+let tipoEvidencia = "contenedor";
+ 
+const LIMITE_IMAGEN = 10 * 1024 * 1024;
+const TIEMPO_AVISO_OCR = 12000;
+ 
+// =====================================================
+// UTILIDADES
+// =====================================================
+ 
+function escaparHTML(valor) {
+    return String(valor ?? "").replace(/[&<>"']/g, (caracter) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+    })[caracter]);
+}
+ 
+function mostrarMensaje(selector, texto, tipo = "info") {
+    const elemento = $(selector);
+    if (!elemento) return;
+ 
+    elemento.textContent = texto;
+    elemento.className = `message ${tipo}`;
+}
+ 
+function ocultarMensaje(selector) {
+    const elemento = $(selector);
+    if (!elemento) return;
+ 
+    elemento.textContent = "";
+    elemento.className = "message hidden";
+}
+ 
+async function peticion(url, opciones = {}) {
+    const respuesta = await fetch(url, opciones);
+    const contenido = await respuesta.json().catch(() => ({}));
+ 
+    if (!respuesta.ok) {
+        throw new Error(
+            contenido.message ||
+            contenido.mensaje ||
+            contenido.error ||
+            `Error del servidor (${respuesta.status})`
+        );
+    }
+ 
+    return contenido;
+}
+ 
+function formatearFecha(fecha) {
+    if (!fecha) return "Fecha no disponible";
+ 
+    const valor = String(fecha);
+ 
+    if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+        const [anio, mes, dia] = valor.split("-");
+        return `${dia}/${mes}/${anio}`;
+    }
+ 
+    const fechaObjeto = new Date(valor);
+ 
+    if (Number.isNaN(fechaObjeto.getTime())) {
+        return valor;
+    }
+ 
+    return fechaObjeto.toLocaleDateString("es-MX");
+}
+ 
+function formatearHora(hora) {
+    if (!hora) return "";
+ 
+    const valor = String(hora);
+    return valor.length >= 5 ? valor.slice(0, 5) : valor;
+}
+ 
+function limpiarVistaPrevia() {
+    if (imagenTemporalURL) {
+        URL.revokeObjectURL(imagenTemporalURL);
+        imagenTemporalURL = null;
+    }
+ 
+    if (scanImage) scanImage.value = "";
+    imagePreview?.removeAttribute("src");
+ 
+    if (fileName) fileName.textContent = "";
+    previewContainer?.classList.add("hidden");
+}
+ 
+function esImagenValida(archivo) {
+    if (!archivo) {
+        return "Selecciona una fotografía.";
+    }
+ 
+    const extensiones = /\.(jpg|jpeg|png|webp)$/i;
+ 
+    const tiposValidos = [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+    ];
+ 
+    const tipoValido = tiposValidos.includes(archivo.type);
+    const extensionValida = extensiones.test(archivo.name);
+ 
+    if (!tipoValido && !extensionValida) {
+        return "Selecciona una imagen JPG, PNG o WEBP.";
+    }
+ 
+    if (archivo.size === 0) {
+        return "La imagen está vacía.";
+    }
+ 
+    if (archivo.size > LIMITE_IMAGEN) {
+        return "La imagen supera el límite de 10 MB.";
+    }
+ 
+    return null;
+}
+ 
+function mostrarEstadoVacio(
+    titulo,
+    descripcion,
+    permitirReintento = false
+) {
+    $("#scanResult")?.classList.add("hidden");
+    $("#emptyResult")?.classList.remove("hidden");
+ 
+    const tituloElemento = $("#emptyResultTitle");
+    const descripcionElemento = $("#emptyResultDescription");
+ 
+    if (tituloElemento) tituloElemento.textContent = titulo;
+    if (descripcionElemento) {
+        descripcionElemento.textContent = descripcion;
+    }
+ 
+    $("#retryScan")?.classList.toggle(
+        "hidden",
+        !permitirReintento
+    );
+}
+ 
+// =====================================================
+// INICIO DE SESIÓN VISUAL
+// =====================================================
+ 
+// Mostrar u ocultar contraseña.
+ 
+togglePassword?.addEventListener("click", () => {
+    if (!loginPassword) return;
+ 
+    const mostrar = loginPassword.type === "password";
+ 
+    loginPassword.type = mostrar ? "text" : "password";
+    togglePassword.textContent = mostrar ? "Ocultar" : "Ver";
+ 
+    togglePassword.setAttribute(
+        "aria-label",
+        mostrar ? "Ocultar contraseña" : "Mostrar contraseña"
+    );
+});
+ 
+// El formulario no autentica todavía contra un servidor.
+ 
+loginForm?.addEventListener("submit", (evento) => {
+    evento.preventDefault();
+ 
+    mostrarMensaje(
+        "#loginMessage",
+        "El acceso real aún no está conectado. Selecciona un perfil de demostración.",
+        "info"
+    );
+});
+ 
+// =====================================================
+// PERFILES TEMPORALES
+// Solo para probar las interfaces.
+// No representa autenticación real.
+// =====================================================
+ 
+function aplicarPerfil(rol) {
+    if (!["operador", "administrador"].includes(rol)) {
+        return;
+    }
+ 
+    rolTemporal = rol;
+    document.body.dataset.role = rol;
+ 
+    try {
+        sessionStorage.setItem("inventarioPerfilTemporal", rol);
+    } catch {
+        // La aplicación puede seguir funcionando si el navegador
+        // bloquea sessionStorage.
+    }
+ 
+    roleSelector?.classList.add("hidden");
+ 
+    loginForm?.reset();
+    ocultarMensaje("#loginMessage");
+ 
+    const esAdmin = rol === "administrador";
+ 
+    const currentRoleIcon = $("#currentRoleIcon");
+    const currentRoleLabel = $("#currentRoleLabel");
+    const welcomeEyebrow = $("#welcomeEyebrow");
+    const welcomeTitle = $("#welcomeTitle");
+    const welcomeDescription = $("#welcomeDescription");
+    const inventoryHeadingTitle = $("#inventoryHeadingTitle");
+    const inventoryHeadingDescription =
+        $("#inventoryHeadingDescription");
+ 
+    if (currentRoleIcon) {
+        currentRoleIcon.textContent = esAdmin ? "▦" : "📷";
+    }
+ 
+    if (currentRoleLabel) {
+        currentRoleLabel.textContent = esAdmin
+            ? "Administrador"
+            : "Operador";
+    }
+ 
+    if (welcomeEyebrow) {
+        welcomeEyebrow.textContent = esAdmin
+            ? "PANEL DE ADMINISTRACIÓN"
+            : "MODO OPERADOR";
+    }
+ 
+    if (welcomeTitle) {
+        welcomeTitle.textContent = esAdmin
+            ? "¡Bienvenida al panel! 👋"
+            : "¡Hola, operadora! 👋";
+    }
+ 
+    if (welcomeDescription) {
+        welcomeDescription.textContent = esAdmin
+            ? "Consulta el estado del inventario y administra los registros."
+            : "Escanea un contenedor y confirma su identificador.";
+    }
+ 
+    if (inventoryHeadingTitle) {
+        inventoryHeadingTitle.textContent = esAdmin
+            ? "Administrar inventario"
+            : "Consultar inventario";
+    }
+ 
+    if (inventoryHeadingDescription) {
+        inventoryHeadingDescription.textContent = esAdmin
+            ? "Consulta los registros y sus fotografías."
+            : "Busca contenedores o guarda el resultado de un escaneo.";
+    }
+ 
+    document.querySelectorAll(".admin-only").forEach((elemento) => {
+        elemento.classList.toggle("hidden", !esAdmin);
+    });
+ 
+    document.querySelectorAll(".quick-nav-link").forEach((enlace) => {
+        enlace.classList.toggle(
+            "active",
+            enlace.dataset.scrollTo === "scanHeading"
+        );
+    });
+ 
+    renderizarContenedores();
+}
+ 
+function mostrarSelectorPerfil() {
+    rolTemporal = null;
+ 
+    try {
+        sessionStorage.removeItem("inventarioPerfilTemporal");
+    } catch {
+        // No se requiere ninguna acción.
+    }
+ 
+    document.body.removeAttribute("data-role");
+ 
+    document.querySelectorAll(".admin-only").forEach((elemento) => {
+        elemento.classList.remove("hidden");
+    });
+ 
+    roleSelector?.classList.remove("hidden");
+ 
+    loginForm?.reset();
+    ocultarMensaje("#loginMessage");
+ 
+    if (loginPassword) {
+        loginPassword.type = "password";
+    }
+ 
+    if (togglePassword) {
+        togglePassword.textContent = "Ver";
+        togglePassword.setAttribute(
+            "aria-label",
+            "Mostrar contraseña"
+        );
+    }
+ 
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
+ 
+roleSelector?.addEventListener("click", (evento) => {
+    const boton = evento.target.closest("[data-select-role]");
+    if (!boton) return;
+ 
+    aplicarPerfil(boton.dataset.selectRole);
+});
+ 
+$("#changeRoleButton")?.addEventListener(
+    "click",
+    mostrarSelectorPerfil
+);
+ 
+// =====================================================
+// NAVEGACIÓN RÁPIDA
+// =====================================================
+ 
+document.querySelectorAll("[data-scroll-to]").forEach((boton) => {
+    boton.addEventListener("click", () => {
+        const destino = document.getElementById(
+            boton.dataset.scrollTo
+        );
+ 
+        if (!destino) return;
+ 
+        destino.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+ 
+        document.querySelectorAll(".quick-nav-link").forEach((enlace) => {
+            enlace.classList.toggle("active", enlace === boton);
+        });
+    });
+});
+ 
+// =====================================================
+// ESTADO DEL SISTEMA
+// =====================================================
+ 
+async function comprobarEstado() {
+    const punto = $(".status-dot");
+ 
+    try {
+        await peticion("/api/estado");
+ 
+        if ($("#connectionStatus")) {
+            $("#connectionStatus").textContent = "Sistema conectado";
+        }
+ 
+        if ($("#systemStatus")) {
+            $("#systemStatus").textContent = "Disponible";
+        }
+ 
+        if (punto) {
+            punto.className = "status-dot online";
+        }
+    } catch {
+        if ($("#connectionStatus")) {
+            $("#connectionStatus").textContent = "Sin conexión";
+        }
+ 
+        if ($("#systemStatus")) {
+            $("#systemStatus").textContent = "Sin conexión";
+        }
+ 
+        if (punto) {
+            punto.className = "status-dot offline";
+        }
+    }
+}
+ 
+// =====================================================
+// INDICADOR DE OCR
+// =====================================================
+ 
+function iniciarIndicadorOCR() {
+    analisisEnCurso = true;
+    avisoLentoMostrado = false;
+ 
+    $("#scanProgress")?.classList.remove("hidden");
+ 
+    if ($("#progressTitle")) {
+        $("#progressTitle").textContent = "Analizando fotografía...";
+    }
+ 
+    if ($("#progressDescription")) {
+        $("#progressDescription").textContent =
+            "Esto puede tardar unos segundos.";
+    }
+ 
+    if (scanButton) {
+        scanButton.disabled = true;
+        scanButton.innerHTML =
+            '<span class="spinner spinner-button" aria-hidden="true"></span> Analizando...';
+    }
+ 
+    const removeImage = $("#removeImage");
+    if (removeImage) removeImage.disabled = true;
+ 
+    temporizadorAvisoOCR = window.setTimeout(() => {
+        if (!analisisEnCurso) return;
+ 
+        avisoLentoMostrado = true;
+ 
+        if ($("#progressTitle")) {
+            $("#progressTitle").textContent =
+                "El análisis está tardando más de lo esperado";
+        }
+ 
+        if ($("#progressDescription")) {
+            $("#progressDescription").textContent =
+                "Seguimos esperando la respuesta. No cierres esta página.";
+        }
+ 
+        mostrarMensaje(
+            "#scanMessage",
+            "El OCR lleva más de 12 segundos. El análisis continúa.",
+            "info"
+        );
+    }, TIEMPO_AVISO_OCR);
+}
+ 
+function finalizarIndicadorOCR() {
+    analisisEnCurso = false;
+ 
+    if (temporizadorAvisoOCR !== null) {
+        clearTimeout(temporizadorAvisoOCR);
+        temporizadorAvisoOCR = null;
+    }
+ 
+    $("#scanProgress")?.classList.add("hidden");
+ 
+    if (scanButton) {
+        scanButton.disabled = false;
+        scanButton.innerHTML =
+            "<span>✧</span> Analizar fotografía";
+    }
+ 
+    const removeImage = $("#removeImage");
+    if (removeImage) removeImage.disabled = false;
+}
+ 
+// =====================================================
+// ESCANEO OCR
+// =====================================================
+ 
+scanImage?.addEventListener("change", () => {
+    ocultarMensaje("#scanMessage");
+ 
+    const archivo = scanImage.files[0];
+ 
+    if (!archivo) {
+        limpiarVistaPrevia();
+        return;
+    }
+ 
+    const error = esImagenValida(archivo);
+ 
+    if (error) {
+        limpiarVistaPrevia();
+        mostrarMensaje("#scanMessage", error, "error");
+        return;
+    }
+ 
+    if (imagenTemporalURL) {
+        URL.revokeObjectURL(imagenTemporalURL);
+    }
+ 
+    imagenTemporalURL = URL.createObjectURL(archivo);
+ 
+    if (imagePreview) {
+        imagePreview.src = imagenTemporalURL;
+    }
+ 
+    if (fileName) {
+        fileName.textContent =
+            archivo.name || "Fotografía seleccionada";
+    }
+ 
+    previewContainer?.classList.remove("hidden");
+ 
+    mostrarEstadoVacio(
+        "Fotografía lista para analizar",
+        "Presiona Analizar fotografía para reconocer el identificador."
+    );
+});
+ 
+$("#removeImage")?.addEventListener("click", () => {
+    if (analisisEnCurso) return;
+ 
+    limpiarVistaPrevia();
+    ocultarMensaje("#scanMessage");
+ 
+    ultimoResultadoOCR = null;
+ 
+    mostrarEstadoVacio(
+        "Aún no hay resultados",
+        "El identificador aparecerá aquí después del análisis."
+    );
+});
+ 
+scanForm?.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+ 
+    if (analisisEnCurso) return;
+ 
+    ocultarMensaje("#scanMessage");
+ 
+    const archivo = scanImage?.files[0];
+    const errorArchivo = esImagenValida(archivo);
+ 
+    if (errorArchivo) {
+        mostrarMensaje("#scanMessage", errorArchivo, "error");
+        return;
+    }
+ 
+    const datos = new FormData();
+ 
+    datos.append("imagen", archivo);
+    datos.append("modo", $("#scanMode")?.value || "automatico");
+ 
+    iniciarIndicadorOCR();
+ 
+    try {
+        const resultado = await peticion("/api/escanear", {
+            method: "POST",
+            body: datos
+        });
+ 
+        if (!resultado.encontrado) {
+            ultimoResultadoOCR = null;
+ 
+            mostrarEstadoVacio(
+                "No pudimos identificar el contenedor",
+                resultado.mensaje ||
+                "Intenta con otra fotografía, mejor enfocada y con buena iluminación.",
+                true
+            );
+ 
+            mostrarMensaje(
+                "#scanMessage",
+                "No se detectó un identificador.",
+                "error"
+            );
+ 
+            return;
+        }
+ 
+        ultimoResultadoOCR = resultado;
+ 
+        $("#emptyResult")?.classList.add("hidden");
+        $("#scanResult")?.classList.remove("hidden");
+ 
+        if ($("#resultValue")) {
+            $("#resultValue").textContent = resultado.valor || "—";
+        }
+ 
+        if ($("#resultType")) {
+            $("#resultType").textContent =
+                resultado.tipo || "No especificado";
+        }
+ 
+        if ($("#resultConfidence")) {
+            $("#resultConfidence").textContent =
+                resultado.confianza != null
+                    ? `${resultado.confianza}%`
+                    : "No disponible";
+        }
+ 
+        if ($("#resultOrientation")) {
+            $("#resultOrientation").textContent =
+                resultado.orientacion || "No disponible";
+        }
+ 
+        if ($("#resultMethod")) {
+            $("#resultMethod").textContent =
+                resultado.metodo || "No especificado";
+        }
+ 
+        $("#reviewNotice")?.classList.toggle(
+            "hidden",
+            !resultado.requiere_revision
+        );
+ 
+        if (containerNumber) {
+            containerNumber.value = resultado.valor || "";
+        }
+ 
+        mostrarMensaje(
+            "#scanMessage",
+            avisoLentoMostrado
+                ? "Análisis completado después de una espera prolongada."
+                : "Análisis completado correctamente.",
+            "success"
+        );
+    } catch (error) {
+        ultimoResultadoOCR = null;
+ 
+        mostrarEstadoVacio(
+            "No se pudo completar el análisis",
+            "Verifica que Flask esté ejecutándose e inténtalo de nuevo.",
+            true
+        );
+ 
+        mostrarMensaje(
+            "#scanMessage",
+            error.message || "No se pudo procesar la fotografía.",
+            "error"
+        );
+    } finally {
+        finalizarIndicadorOCR();
+    }
+});
+ 
+$("#retryScan")?.addEventListener("click", () => {
+    if (analisisEnCurso) return;
+ 
+    limpiarVistaPrevia();
+    ocultarMensaje("#scanMessage");
+ 
+    ultimoResultadoOCR = null;
+ 
+    mostrarEstadoVacio(
+        "Aún no hay resultados",
+        "Selecciona otra fotografía para realizar el análisis."
+    );
+ 
+    scanImage?.click();
+});
+ 
+$("#useIdentifier")?.addEventListener("click", () => {
+    if (!ultimoResultadoOCR || !containerNumber) return;
+ 
+    containerNumber.value = ultimoResultadoOCR.valor || "";
+    containerNumber.focus();
+ 
+    containerForm?.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+    });
+});
+ 
+// =====================================================
+// CONTENEDORES
+// =====================================================
+ 
+async function cargarContenedores() {
+    if (!containersList) return;
+ 
+    containersList.innerHTML =
+        '<div class="loading">Cargando contenedores...</div>';
+ 
+    try {
+        contenedores = await peticion("/api/contenedores/");
+ 
+        if (!Array.isArray(contenedores)) {
+            throw new Error("La respuesta de contenedores no es válida.");
+        }
+ 
+        if ($("#totalContainers")) {
+            $("#totalContainers").textContent = contenedores.length;
+        }
+ 
+        renderizarContenedores();
+        await actualizarTotalFotos();
+    } catch (error) {
+        containersList.innerHTML =
+            '<div class="empty-list">No se pudieron cargar los contenedores.</div>';
+ 
+        mostrarMensaje(
+            "#containerMessage",
+            error.message,
+            "error"
+        );
+    }
+}
+ 
+function renderizarContenedores() {
+    if (!containersList) return;
+ 
+    if (!contenedores.length) {
+        containersList.innerHTML = `
+<div class="empty-list">
+                Todavía no hay contenedores registrados.
+</div>
+        `;
+        return;
+    }
+ 
+    const esAdmin = rolTemporal === "administrador";
+ 
+    containersList.innerHTML = contenedores.map((contenedor) => {
+        const seleccionado =
+            Number(contenedorSeleccionado) === Number(contenedor.id);
+ 
+        const fecha = formatearFecha(contenedor.fecha_registro);
+        const hora = formatearHora(contenedor.hora_registro);
+ 
+        const estado = contenedor.estado
+            ? `<span class="container-status">${escaparHTML(contenedor.estado)}</span>`
+            : "";
+ 
+        const observaciones = contenedor.observaciones
+            ? `<small>${escaparHTML(contenedor.observaciones)}</small>`
+            : "";
+ 
+        const operador = contenedor.operador_nombre
+            ? `<small>Operador: ${escaparHTML(contenedor.operador_nombre)}</small>`
+            : "";
+ 
+        return `
+<article class="container-item ${seleccionado ? "selected" : ""}">
+<div class="container-info">
+<strong>${escaparHTML(contenedor.numero)}</strong>
+ 
+                    <span>
+                        Registro #${escaparHTML(contenedor.id)}
+                        · ${escaparHTML(fecha)}
+                        ${hora ? ` · ${escaparHTML(hora)}` : ""}
+</span>
+ 
+                    ${estado}
+                    ${operador}
+                    ${observaciones}
+</div>
+ 
+                <div class="container-actions">
+<button
+                        class="button secondary"
+                        type="button"
+                        data-action="photos"
+                        data-id="${Number(contenedor.id)}">
+                        Fotografías
+</button>
+ 
+                    ${
+                        esAdmin
+                            ? `
+<button
+                                    class="button danger"
+                                    type="button"
+                                    data-action="delete"
+                                    data-id="${Number(contenedor.id)}">
+                                    Eliminar
+</button>
+                            `
+                            : ""
+                    }
+</div>
+</article>
+        `;
+    }).join("");
+}
+ 
+containersList?.addEventListener("click", async (evento) => {
+    const boton = evento.target.closest("button[data-action]");
+    if (!boton) return;
+ 
+    const id = Number(boton.dataset.id);
+ 
+    if (!Number.isFinite(id)) return;
+ 
+    if (boton.dataset.action === "photos") {
+        await abrirFotografias(id);
+    }
+ 
+    if (
+        boton.dataset.action === "delete" &&
+        rolTemporal === "administrador"
+    ) {
+        await eliminarContenedor(id);
+    }
+});
+ 
+containerForm?.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+ 
+    ocultarMensaje("#containerMessage");
+ 
+    const numero = containerNumber?.value.trim().toUpperCase();
+ 
+    if (!numero) {
+        mostrarMensaje(
+            "#containerMessage",
+            "Escribe el identificador del contenedor.",
+            "error"
+        );
+        return;
+    }
+ 
+    const boton = containerForm.querySelector(
+        "button[type='submit']"
+    );
+ 
+    if (boton) {
+        boton.disabled = true;
+        boton.textContent = "Registrando...";
+    }
+ 
+    try {
+        const nuevo = await peticion("/api/contenedores/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ numero })
+        });
+ 
+        if (containerNumber) {
+            containerNumber.value = "";
+        }
+ 
+        mostrarMensaje(
+            "#containerMessage",
+            `Contenedor ${nuevo.numero || numero} registrado correctamente.`,
+            "success"
+        );
+ 
+        await cargarContenedores();
+    } catch (error) {
+        mostrarMensaje(
+            "#containerMessage",
+            error.message,
+            "error"
+        );
+    } finally {
+        if (boton) {
+            boton.disabled = false;
+            boton.textContent = "Registrar contenedor";
+        }
+    }
+});
+ 
+async function eliminarContenedor(id) {
+    const contenedor = contenedores.find(
+        (item) => Number(item.id) === id
+    );
+ 
+    if (!contenedor) return;
+ 
+    const confirmar = window.confirm(
+        `¿Eliminar el contenedor ${contenedor.numero}?\n\nEsta operación no se puede deshacer.`
+    );
+ 
+    if (!confirmar) return;
+ 
+    try {
+        await peticion(`/api/contenedores/${id}`, {
+            method: "DELETE"
+        });
+ 
+        if (Number(contenedorSeleccionado) === id) {
+            cerrarFotografias();
+        }
+ 
+        mostrarMensaje(
+            "#containerMessage",
+            "Contenedor eliminado correctamente.",
+            "success"
+        );
+ 
+        await cargarContenedores();
+    } catch (error) {
+        mostrarMensaje(
+            "#containerMessage",
+            error.message,
+            "error"
+        );
+    }
+}
+ 
+$("#refreshContainers")?.addEventListener(
+    "click",
+    cargarContenedores
+);
+ 
+// =====================================================
+// PESTAÑAS DE EVIDENCIA
+// =====================================================
+ 
+document.querySelectorAll("[data-evidence-tab]").forEach((boton) => {
+    boton.addEventListener("click", () => {
+        const tipo = boton.dataset.evidenceTab;
+ 
+        if (!["contenedor", "sellos"].includes(tipo)) return;
+ 
+        tipoEvidencia = tipo;
+ 
+        document.querySelectorAll("[data-evidence-tab]").forEach((tab) => {
+            const activo = tab === boton;
+ 
+            tab.classList.toggle("active", activo);
+            tab.setAttribute("aria-selected", String(activo));
+        });
+ 
+        const esSello = tipoEvidencia === "sellos";
+ 
+        const photoInputLabel = $("#photoInputLabel");
+        const uploadPhotoButton = $("#uploadPhotoButton");
+ 
+        if (photoInputLabel) {
+            photoInputLabel.textContent = esSello
+                ? "Fotografía del sello"
+                : "Fotografía del contenedor";
+        }
+ 
+        $("#sealNumberWrapper")?.classList.toggle(
+            "hidden",
+            !esSello
+        );
+ 
+        $("#sealApiNote")?.classList.toggle(
+            "hidden",
+            !esSello
+        );
+ 
+        if (uploadPhotoButton) {
+            uploadPhotoButton.textContent = esSello
+                ? "Función de sellos pendiente"
+                : "Subir fotografía";
+ 
+            // El backend actual no tiene un endpoint de sellos.
+            uploadPhotoButton.disabled = esSello;
+        }
+ 
+        if (photoInput) photoInput.value = "";
+ 
+        if (esSello) {
+            mostrarMensaje(
+                "#photoMessage",
+                "La interfaz de sellos está preparada visualmente, pero falta conectar su endpoint específico.",
+                "info"
+            );
+        } else {
+            ocultarMensaje("#photoMessage");
+        }
+    });
+});
+ 
+// =====================================================
+// FOTOGRAFÍAS DEL CONTENEDOR
+// =====================================================
+ 
+async function abrirFotografias(id) {
+    const contenedor = contenedores.find(
+        (item) => Number(item.id) === Number(id)
+    );
+ 
+    if (!contenedor || !photosSection || !photosList) return;
+ 
+    contenedorSeleccionado = Number(id);
+    tipoEvidencia = "contenedor";
+ 
+    if ($("#selectedContainerTitle")) {
+        $("#selectedContainerTitle").textContent =
+            `Fotografías de ${contenedor.numero}`;
+    }
+ 
+    if ($("#selectedContainerDescription")) {
+        $("#selectedContainerDescription").textContent =
+            `Contenedor #${contenedor.id}`;
+    }
+ 
+    photosSection.classList.remove("hidden");
+ 
+    photosList.innerHTML =
+        '<div class="loading">Cargando fotografías...</div>';
+ 
+    document.querySelectorAll("[data-evidence-tab]").forEach((tab) => {
+        const activo = tab.dataset.evidenceTab === "contenedor";
+ 
+        tab.classList.toggle("active", activo);
+        tab.setAttribute("aria-selected", String(activo));
+    });
+ 
+    if ($("#photoInputLabel")) {
+        $("#photoInputLabel").textContent =
+            "Fotografía del contenedor";
+    }
+ 
+    $("#sealNumberWrapper")?.classList.add("hidden");
+    $("#sealApiNote")?.classList.add("hidden");
+ 
+    const uploadPhotoButton = $("#uploadPhotoButton");
+ 
+    if (uploadPhotoButton) {
+        uploadPhotoButton.disabled = false;
+        uploadPhotoButton.textContent = "Subir fotografía";
+    }
+ 
+    ocultarMensaje("#photoMessage");
+    renderizarContenedores();
+ 
+    photosSection.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+ 
+    await cargarFotografias(id);
+}
+ 
+async function cargarFotografias(id) {
+    if (!photosList) return;
+ 
+    try {
+        const fotos = await peticion(`/api/fotos/contenedor/${id}`);
+ 
+        if (!Array.isArray(fotos)) {
+            throw new Error("La respuesta de fotografías no es válida.");
+        }
+ 
+        renderizarFotografias(fotos);
+        await actualizarTotalFotos();
+    } catch (error) {
+        photosList.innerHTML =
+            '<div class="empty-list">No se pudieron cargar las fotografías.</div>';
+ 
+        mostrarMensaje(
+            "#photoMessage",
+            error.message,
+            "error"
+        );
+    }
+}
+ 
+function renderizarFotografias(fotos) {
+    if (!photosList) return;
+ 
+    if (!fotos.length) {
+        photosList.innerHTML =
+            '<div class="empty-list">Este contenedor todavía no tiene fotografías.</div>';
+        return;
+    }
+ 
+    photosList.innerHTML = fotos.map((foto) => `
+<article class="photo-card">
+<a
+                href="${escaparHTML(foto.url)}"
+                target="_blank"
+                rel="noopener noreferrer">
+<img
+                    src="${escaparHTML(foto.url)}"
+                    alt="Fotografía del contenedor"
+                    loading="lazy">
+</a>
+ 
+            <div class="photo-card-footer">
+<span>Fotografía #${escaparHTML(foto.id)}</span>
+ 
+                ${
+                    rolTemporal === "administrador"
+                        ? `
+<button
+                                class="button danger"
+                                type="button"
+                                data-delete-photo="${Number(foto.id)}">
+                                Eliminar
+</button>
+                        `
+                        : ""
+                }
+</div>
+</article>
+    `).join("");
+}
+ 
+photosList?.addEventListener("click", async (evento) => {
+    const boton = evento.target.closest(
+        "button[data-delete-photo]"
+    );
+ 
+    if (!boton) return;
+    if (rolTemporal !== "administrador") return;
+ 
+    const id = Number(boton.dataset.deletePhoto);
+    if (!Number.isFinite(id)) return;
+ 
+    if (!window.confirm("¿Deseas eliminar esta fotografía?")) {
+        return;
+    }
+ 
+    try {
+        await peticion(`/api/fotos/${id}`, {
+            method: "DELETE"
+        });
+ 
+        mostrarMensaje(
+            "#photoMessage",
+            "Fotografía eliminada correctamente.",
+            "success"
+        );
+ 
+        if (contenedorSeleccionado !== null) {
+            await cargarFotografias(contenedorSeleccionado);
+        }
+    } catch (error) {
+        mostrarMensaje(
+            "#photoMessage",
+            error.message,
+            "error"
+        );
+    }
+});
+ 
+photoForm?.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+ 
+    if (tipoEvidencia === "sellos") {
+        mostrarMensaje(
+            "#photoMessage",
+            "La carga de sellos requiere un endpoint específico del backend.",
+            "info"
+        );
+        return;
+    }
+ 
+    if (!contenedorSeleccionado) {
+        mostrarMensaje(
+            "#photoMessage",
+            "Selecciona primero un contenedor.",
+            "error"
+        );
+        return;
+    }
+ 
+    const archivo = photoInput?.files[0];
+    const errorArchivo = esImagenValida(archivo);
+ 
+    if (errorArchivo) {
+        mostrarMensaje(
+            "#photoMessage",
+            errorArchivo,
+            "error"
+        );
+        return;
+    }
+ 
+    const datos = new FormData();
+    datos.append("foto", archivo);
+ 
+    const boton = $("#uploadPhotoButton");
+ 
+    if (boton) {
+        boton.disabled = true;
+        boton.textContent = "Subiendo...";
+    }
+ 
+    try {
+        await peticion(
+            `/api/fotos/${contenedorSeleccionado}`,
+            {
+                method: "POST",
+                body: datos
+            }
+        );
+ 
+        photoForm.reset();
+ 
+        mostrarMensaje(
+            "#photoMessage",
+            "Fotografía guardada correctamente.",
+            "success"
+        );
+ 
+        await cargarFotografias(contenedorSeleccionado);
+    } catch (error) {
+        mostrarMensaje(
+            "#photoMessage",
+            error.message,
+            "error"
+        );
+    } finally {
+        if (boton) {
+            boton.disabled = tipoEvidencia === "sellos";
+            boton.textContent = tipoEvidencia === "sellos"
+                ? "Función de sellos pendiente"
+                : "Subir fotografía";
+        }
+    }
+});
+ 
+function cerrarFotografias() {
+    contenedorSeleccionado = null;
+ 
+    photosSection?.classList.add("hidden");
+ 
+    if (photosList) photosList.innerHTML = "";
+ 
+    photoForm?.reset();
+    ocultarMensaje("#photoMessage");
+ 
+    renderizarContenedores();
+}
+ 
+$("#closePhotos")?.addEventListener(
+    "click",
+    cerrarFotografias
+);
+ 
+// =====================================================
+// ESTADÍSTICAS
+// =====================================================
+ 
+async function actualizarTotalFotos() {
+    try {
+        const resultados = await Promise.all(
+            contenedores.map(async (contenedor) => {
+                const fotos = await peticion(
+                    `/api/fotos/contenedor/${contenedor.id}`
+                );
+ 
+                return Array.isArray(fotos) ? fotos.length : 0;
+            })
+        );
+ 
+        const total = resultados.reduce(
+            (acumulado, cantidad) => acumulado + cantidad,
+            0
+        );
+ 
+        if ($("#totalPhotos")) {
+            $("#totalPhotos").textContent = total;
+        }
+    } catch {
+        if ($("#totalPhotos")) {
+            $("#totalPhotos").textContent = "—";
+        }
+    }
+}
+ 
+// =====================================================
+// INICIO DE LA APLICACIÓN
+// =====================================================
+ 
+async function iniciarAplicacion() {
+    await comprobarEstado();
+    await cargarContenedores();
+ 
+    // Mostrar primero el selector de perfiles.
+    // Estos perfiles son temporales y no autentican usuarios.
+ 
+    rolTemporal = null;
+    document.body.removeAttribute("data-role");
+ 
+    roleSelector?.classList.remove("hidden");
+ 
+    document.querySelectorAll(".admin-only").forEach((elemento) => {
+        elemento.classList.remove("hidden");
+    });
+}
+ 
+iniciarAplicacion();

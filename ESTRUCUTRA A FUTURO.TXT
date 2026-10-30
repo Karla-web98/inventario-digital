@@ -1,0 +1,34 @@
+frontend/
+│
+├── index.html
+│
+├── css/
+│   └── styles.css
+│
+├── js/
+│   ├── app.js
+│   │
+│   ├── core/
+│   │   ├── app-state.js
+│   │   └── router.js
+│   │
+│   ├── operator/
+│   │   └── operator.js
+│   │
+│   ├── admin/
+│   │   └── admin.js
+│   │
+│   ├── services/
+│   │   ├── api.js
+│   │   ├── contenedores.js
+│   │   ├── fotos.js
+│   │   └── escaneo.js
+│   │
+│   └── utils/
+│       ├── dom.js
+│       ├── mensajes.js
+│       └── validaciones.js
+│
+└── assets/
+    ├── img/
+    └── icons/
